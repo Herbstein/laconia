@@ -1,0 +1,13 @@
+[package]
+name = "laconia-agent"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+bytes = "1.10.1"
+futures = "0.3.31"
+integer-encoding = "4.0.2"
+tokio = { version = "1.45.0", features = ["macros", "net", "rt-multi-thread"] }
+tokio-util = { version = "0.7.15", features = ["codec"] }
+uuid = "1.16.0"
