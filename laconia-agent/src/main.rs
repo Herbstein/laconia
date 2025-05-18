@@ -1,9 +1,13 @@
 use anyhow::Result;
 use bytes::BytesMut;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use laconia_agent::{
-    RequestHeader, KafkaMessageCodec, RequestKind,
-    protocol::{Decodable, Decoder, messages::ApiVersionsRequest},
+    ApiKey, KafkaMessageCodec, KafkaRequest, KafkaResponse, RequestHeader, RequestKind,
+    ResponseHeader, ResponseKind,
+    protocol::{
+        Decodable, Decoder,
+        messages::{ApiVersionsApiKeys, ApiVersionsRequest, ApiVersionsResponse},
+    },
 };
 use tokio::net::TcpListener;
 use tokio_util::codec::Decoder as _;
@@ -28,12 +32,36 @@ async fn main() -> Result<()> {
                 let mut message = BytesMut::from(message);
 
                 let request =
-                    RequestKind::decode(&mut message).expect("should decode known messages");
-                match request {
-                    RequestKind::Metadata(_metadata) => println!("received metadata request"),
-                    RequestKind::ApiVersions(_api_versions) => {
-                        println!("received api versions request")
-                    }
+                    KafkaRequest::decode(&mut message).expect("should decode known messages");
+                println!("{:?}", request);
+
+                if let RequestKind::ApiVersions(_request) = request.request {
+                    let api_keys = ApiKey::all()
+                        .map(|api_key| {
+                            let versions = api_key.versions();
+                            ApiVersionsApiKeys {
+                                api_key,
+                                min_version: versions.min,
+                                max_version: versions.max,
+                                tagged_fields: Default::default(),
+                            }
+                        })
+                        .collect();
+                    let response = ApiVersionsResponse {
+                        error_code: 0,
+                        api_keys,
+                        throttle_time_ms: 0,
+                        tagged_fields: Default::default(),
+                    };
+
+                    let response = KafkaResponse {
+                        header: ResponseHeader {
+                            correlation_id: request.header.correlation_id,
+                        },
+                        response: ResponseKind::ApiVersions(response),
+                    };
+
+                    stream.send(response).await.unwrap();
                 }
 
                 continue;

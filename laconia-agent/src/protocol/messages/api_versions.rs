@@ -4,9 +4,13 @@ use bytes::{BufMut, Bytes, BytesMut};
 
 use crate::{
     ApiKey, Message, Request, Response, VersionRange,
-    protocol::{Decodable, Decoder, Encodable, Encoder, primitives::CompactString},
+    protocol::{
+        Decodable, Decoder, Encoder,
+        primitives::{CompactArray, CompactString},
+    },
 };
 
+#[derive(Debug)]
 pub struct ApiVersionsRequest {
     pub client_software_name: String,
     pub client_software_version: String,
@@ -54,10 +58,10 @@ impl Request for ApiVersionsRequest {
 }
 
 pub struct ApiVersionsResponse {
-    error_code: i16,
-    api_keys: Vec<ApiVersionsApiKeys>,
-    throttle_time_ms: i32,
-    tagged_fields: BTreeMap<i32, Bytes>,
+    pub error_code: i16,
+    pub api_keys: Vec<ApiVersionsApiKeys>,
+    pub throttle_time_ms: i32,
+    pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
 impl Message for ApiVersionsResponse {
@@ -69,10 +73,10 @@ impl Message for ApiVersionsResponse {
     }
 }
 
-impl Encodable for ApiVersionsResponse {
+impl Encoder for ApiVersionsResponse {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
         buf.put_i16(self.error_code);
-        self.api_keys.encode(buf)?;
+        CompactArray(self.api_keys.clone()).encode(buf)?;
         buf.put_i32(self.throttle_time_ms);
         self.tagged_fields.encode(buf)?;
 
@@ -82,14 +86,15 @@ impl Encodable for ApiVersionsResponse {
 
 impl Response for ApiVersionsResponse {}
 
+#[derive(Clone)]
 pub struct ApiVersionsApiKeys {
-    api_key: ApiKey,
-    min_version: i16,
-    max_version: i16,
-    tagged_fields: BTreeMap<i32, Bytes>,
+    pub api_key: ApiKey,
+    pub min_version: i16,
+    pub max_version: i16,
+    pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Encodable for ApiVersionsApiKeys {
+impl Encoder for ApiVersionsApiKeys {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
         buf.put_i16(self.api_key as i16);
         buf.put_i16(self.min_version);

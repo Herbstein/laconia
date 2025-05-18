@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use integer_encoding::{VarIntReader, VarIntWriter};
 use uuid::Uuid;
 
-use crate::protocol::{Decodable, Decoder, Encodable, Encoder};
+use crate::protocol::{Decodable, Decoder, Encoder};
 
 impl Decoder for bool {
     fn decode(buf: &mut BytesMut) -> Result<bool, io::Error> {
@@ -227,9 +227,9 @@ where
     }
 }
 
-impl<T> Encodable for Vec<T>
+impl<T> Encoder for Vec<T>
 where
-    T: Encodable,
+    T: Encoder,
 {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
         buf.put_i32(self.len() as i32);
@@ -290,9 +290,9 @@ where
     }
 }
 
-impl<T> Encodable for CompactArray<T>
+impl<T> Encoder for CompactArray<T>
 where
-    T: Encodable,
+    T: Encoder,
 {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
         buf.writer().write_varint((self.0.len() + 1) as u32)?;
@@ -320,6 +320,12 @@ impl Decoder for BTreeMap<i32, Bytes> {
 
 impl Encoder for BTreeMap<i32, Bytes> {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
-        todo!()
+        if !self.is_empty() {
+            panic!("cannot send non-empty tagged fields")
+        }
+
+        buf.writer().write_varint(0u32)?;
+        // TODO(herbstein): actually write fields
+        Ok(())
     }
 }

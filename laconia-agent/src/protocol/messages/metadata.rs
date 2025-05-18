@@ -11,6 +11,7 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
 pub struct MetadataRequest {
     pub topics: Vec<MetadataRequestTopic>,
     pub allow_auto_topic_creation: bool,
@@ -78,6 +79,7 @@ impl Decodable for MetadataRequest {
     }
 }
 
+#[derive(Debug)]
 pub struct MetadataRequestTopic {
     pub topic_id: Uuid,
     pub name: String,

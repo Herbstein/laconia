@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, io};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::protocol::{
-    Decodable, Decoder, Encodable, Encoder,
-    messages::{ApiVersionsRequest, MetadataRequest},
+    Decodable, Decoder, Encoder,
+    messages::{ApiVersionsRequest, ApiVersionsResponse, MetadataRequest},
     primitives::NullableString,
 };
 
@@ -33,16 +33,22 @@ impl tokio_util::codec::Decoder for KafkaMessageCodec {
 
 impl<T> tokio_util::codec::Encoder<T> for KafkaMessageCodec
 where
-    T: Encodable,
+    T: Encoder,
 {
     type Error = io::Error;
 
     fn encode(&mut self, item: T, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        todo!()
+        let mut buf = BytesMut::new();
+        item.encode(&mut buf)?;
+
+        dst.put_i32(buf.len() as i32);
+        dst.put(buf);
+
+        Ok(())
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum ApiKey {
     Metadata = 3,
     ApiVersions = 18,
@@ -56,17 +62,15 @@ impl ApiKey {
         }
     }
 
-    fn valid_versions(&self) -> VersionRange {
+    pub fn versions(&self) -> VersionRange {
         match self {
             ApiKey::Metadata => MetadataRequest::VERSIONS,
             ApiKey::ApiVersions => ApiVersionsRequest::VERSIONS,
         }
     }
 
-    fn all() -> Vec<ApiKey> {
-        (0..i16::MAX)
-            .filter_map(|key| Self::try_from(key).ok())
-            .collect()
+    pub fn all() -> impl Iterator<Item = Self> {
+        (0..i16::MAX).filter_map(|key| Self::try_from(key).ok())
     }
 }
 
@@ -82,15 +86,29 @@ impl TryFrom<i16> for ApiKey {
     }
 }
 
+#[derive(Debug)]
+pub struct KafkaRequest {
+    pub header: RequestHeader,
+    pub request: RequestKind,
+}
+
+impl Decoder for KafkaRequest {
+    fn decode(buf: &mut BytesMut) -> Result<Self, io::Error> {
+        let header = RequestHeader::decode(buf)?;
+        let request = RequestKind::decode(buf, &header)?;
+
+        Ok(KafkaRequest { header, request })
+    }
+}
+
+#[derive(Debug)]
 pub enum RequestKind {
     Metadata(MetadataRequest),
     ApiVersions(ApiVersionsRequest),
 }
 
-impl Decoder for RequestKind {
-    fn decode(buf: &mut BytesMut) -> Result<Self, io::Error> {
-        let header = RequestHeader::decode(buf)?;
-
+impl RequestKind {
+    fn decode(buf: &mut BytesMut, header: &RequestHeader) -> Result<Self, io::Error> {
         Ok(match header.api_key {
             ApiKey::Metadata => Self::Metadata(MetadataRequest::decode(buf, header.version)?),
             ApiKey::ApiVersions => {
@@ -100,6 +118,7 @@ impl Decoder for RequestKind {
     }
 }
 
+#[derive(Debug)]
 pub struct RequestHeader {
     pub api_key: ApiKey,
     pub version: i16,
@@ -172,4 +191,43 @@ pub trait Request: Message + Decodable {
     type Response: Response;
 }
 
-pub trait Response: Message + Encodable {}
+pub trait Response: Message + Encoder {}
+
+pub struct KafkaResponse {
+    pub header: ResponseHeader,
+    pub response: ResponseKind,
+}
+
+impl Encoder for KafkaResponse {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        self.header.encode(buf)?;
+        self.response.encode(buf)?;
+        Ok(())
+    }
+}
+
+pub struct ResponseHeader {
+    pub correlation_id: i32,
+}
+
+impl Encoder for ResponseHeader {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        buf.put_i32(self.correlation_id);
+        Ok(())
+    }
+}
+
+pub enum ResponseKind {
+    ApiVersions(ApiVersionsResponse),
+}
+
+impl Encoder for ResponseKind {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        match self {
+            ResponseKind::ApiVersions(response) => {
+                response.encode(buf)?;
+            }
+        }
+        Ok(())
+    }
+}
