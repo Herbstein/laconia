@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, io};
 
-use bytes::{Buf, Bytes, BytesMut};
-use integer_encoding::VarIntReader;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use integer_encoding::{VarIntReader, VarIntWriter};
 use uuid::Uuid;
 
-use crate::protocol::{Decodable, Decoder};
+use crate::protocol::{Decodable, Decoder, Encodable, Encoder};
 
 impl Decoder for bool {
     fn decode(buf: &mut BytesMut) -> Result<bool, io::Error> {
@@ -181,13 +181,11 @@ impl Decoder for NullableCompactString {
     }
 }
 
-pub struct Array<T>(pub Vec<T>);
-
-impl<T> Decoder for Array<T>
+impl<T> Decoder for Vec<T>
 where
     T: Decoder,
 {
-    fn decode(buf: &mut BytesMut) -> Result<Array<T>, io::Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, io::Error> {
         if buf.len() < 4 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -202,11 +200,11 @@ where
             array.push(T::decode(buf)?);
         }
 
-        Ok(Self(array))
+        Ok(array)
     }
 }
 
-impl<T> Decodable for Array<T>
+impl<T> Decodable for Vec<T>
 where
     T: Decodable,
 {
@@ -225,7 +223,20 @@ where
             array.push(T::decode(buf, version)?);
         }
 
-        Ok(Self(array))
+        Ok(array)
+    }
+}
+
+impl<T> Encodable for Vec<T>
+where
+    T: Encodable,
+{
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        buf.put_i32(self.len() as i32);
+        for item in self {
+            item.encode(buf)?;
+        }
+        Ok(())
     }
 }
 
@@ -279,9 +290,21 @@ where
     }
 }
 
-pub struct TaggedFields(pub BTreeMap<i32, Bytes>);
+impl<T> Encodable for CompactArray<T>
+where
+    T: Encodable,
+{
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        buf.writer().write_varint((self.0.len() + 1) as u32)?;
+        for element in &self.0 {
+            element.encode(buf)?;
+        }
 
-impl Decoder for TaggedFields {
+        Ok(())
+    }
+}
+
+impl Decoder for BTreeMap<i32, Bytes> {
     fn decode(buf: &mut BytesMut) -> Result<Self, io::Error> {
         let mut tagged_fields = BTreeMap::new();
         let num_tagged_fields = buf.reader().read_varint::<u32>()? as usize;
@@ -291,6 +314,12 @@ impl Decoder for TaggedFields {
             let unknown_value = buf.split_to(size);
             tagged_fields.insert(tag as i32, unknown_value.freeze());
         }
-        Ok(Self(tagged_fields))
+        Ok(tagged_fields)
+    }
+}
+
+impl Encoder for BTreeMap<i32, Bytes> {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        todo!()
     }
 }

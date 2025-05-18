@@ -7,7 +7,7 @@ use crate::{
     Message, VersionRange,
     protocol::{
         Decodable, Decoder,
-        primitives::{Array, CompactArray, CompactString, NullableCompactString, TaggedFields},
+        primitives::{CompactArray, CompactString, NullableCompactString},
     },
 };
 
@@ -38,7 +38,7 @@ impl Decodable for MetadataRequest {
         }
 
         let topics = if version < 9 {
-            Array::<MetadataRequestTopic>::decode(buf, version)?.0
+            Vec::<MetadataRequestTopic>::decode(buf, version)?
         } else {
             CompactArray::<MetadataRequestTopic>::decode(buf, version)?.0
         };
@@ -65,7 +65,7 @@ impl Decodable for MetadataRequest {
 
         let mut tagged_fields = BTreeMap::new();
         if version > 8 {
-            tagged_fields = TaggedFields::decode(buf)?.0;
+            tagged_fields = Decoder::decode(buf)?;
         }
 
         Ok(Self {
@@ -102,7 +102,7 @@ impl Decodable for MetadataRequestTopic {
 
         let mut tagged_fields = BTreeMap::new();
         if version > 8 {
-            tagged_fields = TaggedFields::decode(buf)?.0;
+            tagged_fields = Decoder::decode(buf)?;
         };
 
         Ok(Self {

@@ -1,10 +1,9 @@
 use std::{collections::BTreeMap, io};
 
-use bytes::{Buf, Bytes, BytesMut};
-use integer_encoding::VarIntReader;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::protocol::{
-    Decodable, Decoder,
+    Decodable, Decoder, Encodable, Encoder,
     messages::{ApiVersionsRequest, MetadataRequest},
     primitives::NullableString,
 };
@@ -22,7 +21,7 @@ impl tokio_util::codec::Decoder for KafkaMessageCodec {
             return Ok(None);
         }
 
-        let len = u32::from_be_bytes(src[..4].try_into().unwrap()) as usize;
+        let len = i32::from_be_bytes(src[..4].try_into().unwrap()) as usize;
         if src.len() - 4 < len {
             return Ok(None);
         }
@@ -32,10 +31,18 @@ impl tokio_util::codec::Decoder for KafkaMessageCodec {
     }
 }
 
-pub(crate) trait Encoder {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error>;
+impl<T> tokio_util::codec::Encoder<T> for KafkaMessageCodec
+where
+    T: Encodable,
+{
+    type Error = io::Error;
+
+    fn encode(&mut self, item: T, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        todo!()
+    }
 }
 
+#[derive(Copy, Clone)]
 pub enum ApiKey {
     Metadata = 3,
     ApiVersions = 18,
@@ -82,20 +89,27 @@ pub enum RequestKind {
 
 impl Decoder for RequestKind {
     fn decode(buf: &mut BytesMut) -> Result<Self, io::Error> {
-        todo!()
+        let header = RequestHeader::decode(buf)?;
+
+        Ok(match header.api_key {
+            ApiKey::Metadata => Self::Metadata(MetadataRequest::decode(buf, header.version)?),
+            ApiKey::ApiVersions => {
+                Self::ApiVersions(ApiVersionsRequest::decode(buf, header.version)?)
+            }
+        })
     }
 }
 
-pub struct KafkaHeader {
-    pub key: i16,
+pub struct RequestHeader {
+    pub api_key: ApiKey,
     pub version: i16,
     pub correlation_id: i32,
     pub client_id: String,
-    pub tagged_fields: BTreeMap<u32, Bytes>,
+    pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Decoder for KafkaHeader {
-    fn decode(buf: &mut BytesMut) -> Result<KafkaHeader, io::Error> {
+impl Decoder for RequestHeader {
+    fn decode(buf: &mut BytesMut) -> Result<Self, io::Error> {
         if buf.len() < 8 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -123,17 +137,11 @@ impl Decoder for KafkaHeader {
 
         let mut tagged_fields = BTreeMap::new();
         if header_version > 1 {
-            let num_tagged_fields = buf.reader().read_varint::<u32>()? as usize;
-            for _ in 0..num_tagged_fields {
-                let tag = buf.reader().read_varint::<u32>()?;
-                let size = buf.reader().read_varint::<u32>()? as usize;
-                let unknown_value = buf.split_to(size).freeze();
-                tagged_fields.insert(tag, unknown_value);
-            }
+            tagged_fields = Decoder::decode(buf)?;
         }
 
         Ok(Self {
-            key,
+            api_key,
             version,
             correlation_id,
             client_id,
@@ -160,14 +168,8 @@ pub trait Message: Sized {
     fn header_version(version: i16) -> i16;
 }
 
-pub trait Encodable: Sized {
-    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error>;
-
-    fn compute_size(&self, version: i16) -> Result<usize, io::Error>;
-}
-
 pub trait Request: Message + Decodable {
-    const KEY: u16;
-
-    type Response: Message + Encodable;
+    type Response: Response;
 }
+
+pub trait Response: Message + Encodable {}

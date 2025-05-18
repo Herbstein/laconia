@@ -2,7 +2,7 @@ use anyhow::Result;
 use bytes::BytesMut;
 use futures::StreamExt;
 use laconia_agent::{
-    KafkaMessageCodec, KafkaHeader,
+    RequestHeader, KafkaMessageCodec, RequestKind,
     protocol::{Decodable, Decoder, messages::ApiVersionsRequest},
 };
 use tokio::net::TcpListener;
@@ -24,15 +24,25 @@ async fn main() -> Result<()> {
                         break;
                     }
                 };
-                println!("Got a message of length: {}", message.len());
 
                 let mut message = BytesMut::from(message);
 
-                let header = KafkaHeader::decode(&mut message).unwrap();
+                let request =
+                    RequestKind::decode(&mut message).expect("should decode known messages");
+                match request {
+                    RequestKind::Metadata(_metadata) => println!("received metadata request"),
+                    RequestKind::ApiVersions(_api_versions) => {
+                        println!("received api versions request")
+                    }
+                }
+
+                continue;
+
+                let header = RequestHeader::decode(&mut message).unwrap();
 
                 println!(
                     "Got key: {}, version: {}, client: {}",
-                    header.key, header.version, header.client_id
+                    header.api_key as i16, header.version, header.client_id
                 );
 
                 let api_versions = ApiVersionsRequest::decode(&mut message, header.version)
