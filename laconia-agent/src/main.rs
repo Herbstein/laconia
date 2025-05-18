@@ -2,11 +2,11 @@ use anyhow::Result;
 use bytes::BytesMut;
 use futures::{SinkExt, StreamExt};
 use laconia_agent::{
-    ApiKey, KafkaMessageCodec, KafkaRequest, KafkaResponse, RequestHeader, RequestKind,
-    ResponseHeader, ResponseKind,
+    ApiKey, KafkaMessageCodec, KafkaRequest, KafkaResponse, RequestKind, ResponseHeader,
+    ResponseKind,
     protocol::{
-        Decodable, Decoder,
-        messages::{ApiVersionsApiKeys, ApiVersionsRequest, ApiVersionsResponse},
+        Decoder,
+        messages::{ApiVersionsApiKeys, ApiVersionsResponse},
     },
 };
 use tokio::net::TcpListener;
@@ -63,23 +63,6 @@ async fn main() -> Result<()> {
 
                     stream.send(response).await.unwrap();
                 }
-
-                continue;
-
-                let header = RequestHeader::decode(&mut message).unwrap();
-
-                println!(
-                    "Got key: {}, version: {}, client: {}",
-                    header.api_key as i16, header.version, header.client_id
-                );
-
-                let api_versions = ApiVersionsRequest::decode(&mut message, header.version)
-                    .expect("couldn't decode metadata request");
-
-                println!(
-                    "Api version request - software name: '{}', software version: '{}'",
-                    api_versions.client_software_name, api_versions.client_software_version
-                )
             }
         });
     }

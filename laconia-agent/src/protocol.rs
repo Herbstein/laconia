@@ -13,6 +13,6 @@ pub trait Encoder {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error>;
 }
 
-pub trait Decodable: Sized {
+pub trait DecoderVersioned: Sized {
     fn decode(buf: &mut BytesMut, version: i16) -> Result<Self, io::Error>;
 }

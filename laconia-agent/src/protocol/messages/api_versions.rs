@@ -5,7 +5,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 use crate::{
     ApiKey, Message, Request, Response, VersionRange,
     protocol::{
-        Decodable, Decoder, Encoder,
+        DecoderVersioned, Decoder, Encoder,
         primitives::{CompactArray, CompactString},
     },
 };
@@ -26,7 +26,7 @@ impl Message for ApiVersionsRequest {
     }
 }
 
-impl Decodable for ApiVersionsRequest {
+impl DecoderVersioned for ApiVersionsRequest {
     fn decode(buf: &mut BytesMut, version: i16) -> Result<Self, io::Error> {
         let client_software_name = if version < 3 {
             String::new()

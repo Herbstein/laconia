@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, io};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::protocol::{
-    Decodable, Decoder, Encoder,
+    DecoderVersioned, Decoder, Encoder,
     messages::{ApiVersionsRequest, ApiVersionsResponse, MetadataRequest},
     primitives::NullableString,
 };
@@ -187,7 +187,7 @@ pub trait Message: Sized {
     fn header_version(version: i16) -> i16;
 }
 
-pub trait Request: Message + Decodable {
+pub trait Request: Message + DecoderVersioned {
     type Response: Response;
 }
 

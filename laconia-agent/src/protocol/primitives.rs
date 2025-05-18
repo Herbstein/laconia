@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use integer_encoding::{VarIntReader, VarIntWriter};
 use uuid::Uuid;
 
-use crate::protocol::{Decodable, Decoder, Encoder};
+use crate::protocol::{DecoderVersioned, Decoder, Encoder};
 
 impl Decoder for bool {
     fn decode(buf: &mut BytesMut) -> Result<bool, io::Error> {
@@ -204,9 +204,9 @@ where
     }
 }
 
-impl<T> Decodable for Vec<T>
+impl<T> DecoderVersioned for Vec<T>
 where
-    T: Decodable,
+    T: DecoderVersioned,
 {
     fn decode(buf: &mut BytesMut, version: i16) -> Result<Self, io::Error> {
         if buf.len() < 4 {
@@ -266,9 +266,9 @@ where
     }
 }
 
-impl<T> Decodable for CompactArray<T>
+impl<T> DecoderVersioned for CompactArray<T>
 where
-    T: Decodable,
+    T: DecoderVersioned,
 {
     fn decode(buf: &mut BytesMut, version: i16) -> Result<Self, io::Error> {
         let length = buf.reader().read_varint::<u32>()? as usize;

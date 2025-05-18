@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     Message, VersionRange,
     protocol::{
-        Decodable, Decoder,
+        DecoderVersioned, Decoder,
         primitives::{CompactArray, CompactString, NullableCompactString},
     },
 };
@@ -29,7 +29,7 @@ impl Message for MetadataRequest {
     }
 }
 
-impl Decodable for MetadataRequest {
+impl DecoderVersioned for MetadataRequest {
     fn decode(buf: &mut BytesMut, version: i16) -> Result<Self, io::Error> {
         if !Self::VERSIONS.contains(version) {
             return Err(io::Error::new(
@@ -86,7 +86,7 @@ pub struct MetadataRequestTopic {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Decodable for MetadataRequestTopic {
+impl DecoderVersioned for MetadataRequestTopic {
     fn decode(buf: &mut BytesMut, version: i16) -> Result<Self, io::Error> {
         let topic_id = if version > 9 {
             Uuid::decode(buf)?
