@@ -42,7 +42,9 @@ async fn main() -> Result<()> {
 
                 let mut message = BytesMut::from(message);
 
-                let request = KafkaRequest::decode_and_handle(&mut message, &registry).unwrap();
+                let request = KafkaRequest::decode_and_handle(&mut message, &registry)
+                    .await
+                    .unwrap();
 
                 let response = KafkaResponse::new(&request.header, request.response);
 

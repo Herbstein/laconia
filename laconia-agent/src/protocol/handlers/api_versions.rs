@@ -29,7 +29,7 @@ impl ApiVersionsHandler {
 }
 
 impl RequestHandler<ApiVersionsRequest> for ApiVersionsHandler {
-    fn handle(&self, _request: ApiVersionsRequest) -> Result<ApiVersionsResponse, io::Error> {
+    async fn handle(&self, _request: ApiVersionsRequest) -> Result<ApiVersionsResponse, io::Error> {
         println!("Handling ApiVersionsRequest");
         Ok(ApiVersionsResponse {
             error_code: 0,

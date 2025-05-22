@@ -31,13 +31,13 @@ impl MessageRegistry {
             .insert(key, Box::new(TypedRequestHandler::new(handler)));
     }
 
-    pub fn handle_request(
+    pub async fn handle_request(
         &self,
         buf: &mut BytesMut,
         header: &RequestHeader,
     ) -> Result<Box<dyn AnyResponse>, io::Error> {
         match self.handlers.get(&header.api_key) {
-            Some(handler) => handler.handle(buf, header),
+            Some(handler) => handler.handle(buf, header).await,
             None => Err(io::Error::other(format!(
                 "Unsupported api key: {}",
                 header.api_key

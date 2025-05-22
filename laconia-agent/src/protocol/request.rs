@@ -3,6 +3,6 @@ use crate::{
     protocol::{DecoderVersioned, response::Response},
 };
 
-pub trait Request: Message + DecoderVersioned {
+pub trait Request: Message + DecoderVersioned + Send + Sync {
     type Response: Response;
 }

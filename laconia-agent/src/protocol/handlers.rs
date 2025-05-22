@@ -1,5 +1,6 @@
 use std::{io, marker::PhantomData};
 
+use async_trait::async_trait;
 use bytes::BytesMut;
 
 use crate::{
@@ -10,12 +11,14 @@ use crate::{
 pub mod api_versions;
 pub mod metadata;
 
-pub trait RequestHandler<Req: Request> {
-    fn handle(&self, request: Req) -> Result<Req::Response, io::Error>;
+pub trait RequestHandler<Req: Request>: Send + Sync {
+    fn handle(&self, request: Req)
+    -> impl Future<Output = Result<Req::Response, io::Error>> + Send;
 }
 
+#[async_trait]
 pub(crate) trait AnyRequestHandler: Send + Sync {
-    fn handle(
+    async fn handle(
         &self,
         buf: &mut BytesMut,
         header: &RequestHeader,
@@ -40,19 +43,20 @@ impl<Req: Request, H: RequestHandler<Req>> TypedRequestHandler<Req, H> {
     }
 }
 
+#[async_trait]
 impl<Req, H> AnyRequestHandler for TypedRequestHandler<Req, H>
 where
-    H: RequestHandler<Req> + Send + Sync,
-    Req: Request + Send + Sync,
+    H: RequestHandler<Req>,
+    Req: Request,
     <Req as Request>::Response: 'static,
 {
-    fn handle(
+    async fn handle(
         &self,
         buf: &mut BytesMut,
         header: &RequestHeader,
     ) -> Result<Box<dyn AnyResponse>, io::Error> {
         let request = Req::decode(buf, header.version)?;
-        let response = self.handler.handle(request)?;
+        let response = self.handler.handle(request).await?;
         Ok(Box::new(response))
     }
 

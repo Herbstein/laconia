@@ -52,12 +52,12 @@ pub struct KafkaRequest {
 }
 
 impl KafkaRequest {
-    pub fn decode_and_handle(
+    pub async fn decode_and_handle(
         buf: &mut BytesMut,
         registry: &MessageRegistry,
     ) -> Result<Self, io::Error> {
         let header = RequestHeader::decode(buf, registry)?;
-        let response = registry.handle_request(buf, &header)?;
+        let response = registry.handle_request(buf, &header).await?;
         Ok(Self { header, response })
     }
 }
