@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use integer_encoding::{VarIntReader, VarIntWriter};
 use uuid::Uuid;
 
-use crate::protocol::{DecoderVersioned, Decoder, Encoder};
+use crate::protocol::{Decoder, DecoderVersioned, Encoder};
 
 impl Decoder for bool {
     fn decode(buf: &mut BytesMut) -> Result<bool, io::Error> {
@@ -22,6 +22,17 @@ impl Decoder for bool {
     }
 }
 
+impl Encoder for bool {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        if *self {
+            buf.put_u8(1);
+        } else {
+            buf.put_u8(0);
+        }
+        Ok(())
+    }
+}
+
 impl Decoder for i16 {
     fn decode(buf: &mut BytesMut) -> Result<i16, io::Error> {
         if buf.len() < 2 {
@@ -32,6 +43,20 @@ impl Decoder for i16 {
         }
 
         Ok(buf.get_i16())
+    }
+}
+
+impl Encoder for i16 {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        buf.put_i16(*self);
+        Ok(())
+    }
+}
+
+impl Encoder for i32 {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        buf.put_i32(*self);
+        Ok(())
     }
 }
 
@@ -150,10 +175,19 @@ impl Decoder for CompactString {
     }
 }
 
-pub struct NullableCompactString(pub String);
+impl Encoder for CompactString {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        let bytes = self.0.as_bytes();
+        buf.writer().write_varint(bytes.len() as u32 + 1)?;
+        buf.put_slice(bytes);
+        Ok(())
+    }
+}
 
-impl Decoder for NullableCompactString {
-    fn decode(buf: &mut BytesMut) -> Result<NullableCompactString, io::Error> {
+pub struct CompactNullableString(pub String);
+
+impl Decoder for CompactNullableString {
+    fn decode(buf: &mut BytesMut) -> Result<CompactNullableString, io::Error> {
         let length = buf.reader().read_varint::<u32>()? as usize;
 
         if length == 0 {
@@ -178,6 +212,19 @@ impl Decoder for NullableCompactString {
         };
 
         Ok(Self(str))
+    }
+}
+
+impl Encoder for CompactNullableString {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        let bytes = self.0.as_bytes();
+        if bytes.len() == 0 {
+            buf.writer().write_varint(0u32)?;
+        } else {
+            buf.writer().write_varint(bytes.len() as u32 + 1)?;
+            buf.put_slice(bytes);
+        }
+        Ok(())
     }
 }
 

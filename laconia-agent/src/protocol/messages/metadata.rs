@@ -1,13 +1,15 @@
 use std::{collections::BTreeMap, io};
 
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use uuid::Uuid;
 
 use crate::{
     Message, VersionRange,
     protocol::{
-        DecoderVersioned, Decoder,
-        primitives::{CompactArray, CompactString, NullableCompactString},
+        Decoder, DecoderVersioned, Encoder,
+        primitives::{CompactArray, CompactNullableString, CompactString},
+        request::Request,
+        response::Response,
     },
 };
 
@@ -27,6 +29,10 @@ impl Message for MetadataRequest {
     fn header_version(version: i16) -> i16 {
         if version < 9 { 1 } else { 2 }
     }
+}
+
+impl Request for MetadataRequest {
+    type Response = MetadataResponse;
 }
 
 impl DecoderVersioned for MetadataRequest {
@@ -99,7 +105,7 @@ impl DecoderVersioned for MetadataRequestTopic {
         } else if version < 10 {
             CompactString::decode(buf)?.0
         } else {
-            NullableCompactString::decode(buf)?.0
+            CompactNullableString::decode(buf)?.0
         };
 
         let mut tagged_fields = BTreeMap::new();
@@ -112,5 +118,97 @@ impl DecoderVersioned for MetadataRequestTopic {
             name,
             tagged_fields,
         })
+    }
+}
+
+pub struct MetadataResponse {
+    pub throttle_time_ms: i32,
+    pub brokers: Vec<MetadataResponseBrokers>,
+    pub cluster_id: String,
+    pub controller_id: i32,
+    pub topics: Vec<MetadataResponseTopic>,
+    pub tagged_fields: BTreeMap<i32, Bytes>,
+}
+
+impl Encoder for MetadataResponse {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        self.throttle_time_ms.encode(buf)?;
+        CompactArray(self.brokers.clone()).encode(buf)?;
+        CompactNullableString(self.cluster_id.clone()).encode(buf)?;
+        self.controller_id.encode(buf)?;
+        CompactArray(self.topics.clone()).encode(buf)?;
+        self.tagged_fields.encode(buf)?;
+        Ok(())
+    }
+}
+
+impl Response for MetadataResponse {}
+
+#[derive(Clone)]
+pub struct MetadataResponseBrokers {
+    pub node_id: i32,
+    pub host: String,
+    pub port: i32,
+    pub rack: String,
+    pub tagged_fields: BTreeMap<i32, Bytes>,
+}
+
+impl Encoder for MetadataResponseBrokers {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        self.node_id.encode(buf)?;
+        CompactString(self.host.clone()).encode(buf)?;
+        self.port.encode(buf)?;
+        CompactNullableString(self.rack.clone()).encode(buf)?;
+        self.tagged_fields.encode(buf)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct MetadataResponseTopic {
+    pub error_code: i16,
+    pub name: String,
+    pub topic_id: Uuid,
+    pub is_internal: bool,
+    pub partitions: Vec<MetadataResponseTopicPartition>,
+    pub topic_authorized_operations: i32,
+    pub tagged_fields: BTreeMap<i32, Bytes>,
+}
+
+impl Encoder for MetadataResponseTopic {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        self.error_code.encode(buf)?;
+        CompactString(self.name.clone()).encode(buf)?;
+        self.is_internal.encode(buf)?;
+        CompactArray(self.partitions.clone()).encode(buf)?;
+        self.topic_authorized_operations.encode(buf)?;
+        self.tagged_fields.encode(buf)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct MetadataResponseTopicPartition {
+    pub error_code: i16,
+    pub partition_index: i32,
+    pub leader_id: i32,
+    pub leader_epoch: i32,
+    pub replica_nodes: Vec<i32>,
+    pub isr_nodes: Vec<i32>,
+    pub offline_replicas: Vec<i32>,
+    pub tagged_fields: BTreeMap<i32, Bytes>,
+}
+
+impl Encoder for MetadataResponseTopicPartition {
+    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+        buf.put_i16(self.error_code);
+        buf.put_i32(self.partition_index);
+        buf.put_i32(self.leader_id);
+        buf.put_i32(self.leader_epoch);
+        CompactArray(self.replica_nodes.clone()).encode(buf)?;
+        CompactArray(self.isr_nodes.clone()).encode(buf)?;
+        CompactArray(self.offline_replicas.clone()).encode(buf)?;
+        self.tagged_fields.encode(buf)?;
+        Ok(())
     }
 }

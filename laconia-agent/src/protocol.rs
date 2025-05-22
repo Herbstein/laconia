@@ -2,8 +2,12 @@ use std::io;
 
 use bytes::BytesMut;
 
+pub mod handlers;
 pub mod messages;
 pub mod primitives;
+pub mod registry;
+pub mod request;
+pub mod response;
 
 pub trait Decoder: Sized {
     fn decode(buf: &mut BytesMut) -> Result<Self, io::Error>;

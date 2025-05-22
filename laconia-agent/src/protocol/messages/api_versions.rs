@@ -3,10 +3,12 @@ use std::{collections::BTreeMap, io};
 use bytes::{BufMut, Bytes, BytesMut};
 
 use crate::{
-    ApiKey, Message, Request, Response, VersionRange,
+    Message, VersionRange,
     protocol::{
-        DecoderVersioned, Decoder, Encoder,
+        Decoder, DecoderVersioned, Encoder,
         primitives::{CompactArray, CompactString},
+        request::Request,
+        response::Response,
     },
 };
 
@@ -64,15 +66,6 @@ pub struct ApiVersionsResponse {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Message for ApiVersionsResponse {
-    const VERSIONS: VersionRange = VersionRange { min: 3, max: 3 };
-    const DEPRECATED_VERSIONS: Option<VersionRange> = None;
-
-    fn header_version(_version: i16) -> i16 {
-        0
-    }
-}
-
 impl Encoder for ApiVersionsResponse {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
         buf.put_i16(self.error_code);
@@ -88,7 +81,7 @@ impl Response for ApiVersionsResponse {}
 
 #[derive(Clone)]
 pub struct ApiVersionsApiKeys {
-    pub api_key: ApiKey,
+    pub api_key: i16,
     pub min_version: i16,
     pub max_version: i16,
     pub tagged_fields: BTreeMap<i32, Bytes>,
