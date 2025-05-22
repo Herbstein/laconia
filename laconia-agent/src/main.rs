@@ -6,7 +6,7 @@ use futures::{SinkExt, StreamExt};
 use laconia_agent::{
     ConnectionState, KafkaMessageCodec, KafkaRequest, KafkaResponse,
     protocol::{
-        handlers::{api_versions::ApiVersionsHandler, metadata::MetadataRequestHandler},
+        handlers::{ApiVersionsHandler, FindCoordinatorHandler, MetadataHandler},
         registry::MessageRegistry,
     },
 };
@@ -18,7 +18,8 @@ async fn main() -> Result<()> {
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
 
     let mut registry = MessageRegistry::new();
-    registry.register(3, MetadataRequestHandler);
+    registry.register(3, MetadataHandler);
+    registry.register(10, FindCoordinatorHandler);
     registry.register(18, ApiVersionsHandler);
 
     let registry = Arc::new(registry);

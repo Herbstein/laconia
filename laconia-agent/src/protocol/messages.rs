@@ -1,5 +1,8 @@
-pub mod api_versions;
+mod api_versions;
 pub use api_versions::*;
 
-pub mod metadata;
+mod metadata;
 pub use metadata::*;
+
+mod find_coordinator;
+pub use find_coordinator::*;

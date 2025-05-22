@@ -8,9 +8,9 @@ use crate::{
     },
 };
 
-pub struct MetadataRequestHandler;
+pub struct MetadataHandler;
 
-impl RequestHandler<MetadataRequest> for MetadataRequestHandler {
+impl RequestHandler<MetadataRequest> for MetadataHandler {
     async fn handle(
         &self,
         request: MetadataRequest,
