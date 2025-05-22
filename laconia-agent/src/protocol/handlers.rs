@@ -3,16 +3,13 @@ use std::{io, marker::PhantomData};
 use async_trait::async_trait;
 use bytes::BytesMut;
 
-use crate::{
-    RequestHeader, VersionRange,
-    protocol::{request::Request, response::AnyResponse},
-};
+use crate::{RequestHeader, VersionRange, protocol::{request::Request, response::AnyResponse}, ConnectionState};
 
 pub mod api_versions;
 pub mod metadata;
 
 pub trait RequestHandler<Req: Request>: Send + Sync {
-    fn handle(&self, request: Req)
+    fn handle(&self, request: Req, state: &mut ConnectionState)
     -> impl Future<Output = Result<Req::Response, io::Error>> + Send;
 }
 
@@ -22,6 +19,7 @@ pub(crate) trait AnyRequestHandler: Send + Sync {
         &self,
         buf: &mut BytesMut,
         header: &RequestHeader,
+        state: &mut ConnectionState
     ) -> Result<Box<dyn AnyResponse>, io::Error>;
 
     fn header_version(&self, version: i16) -> i16;
@@ -54,9 +52,10 @@ where
         &self,
         buf: &mut BytesMut,
         header: &RequestHeader,
+        state: &mut ConnectionState
     ) -> Result<Box<dyn AnyResponse>, io::Error> {
         let request = Req::decode(buf, header.version)?;
-        let response = self.handler.handle(request).await?;
+        let response = self.handler.handle(request, state).await?;
         Ok(Box::new(response))
     }
 

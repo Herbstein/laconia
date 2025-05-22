@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, io};
+use std::{collections::BTreeMap, io, sync::Arc};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -29,13 +29,10 @@ impl tokio_util::codec::Decoder for KafkaMessageCodec {
     }
 }
 
-impl<T> tokio_util::codec::Encoder<T> for KafkaMessageCodec
-where
-    T: Encoder,
-{
+impl tokio_util::codec::Encoder<KafkaResponse> for KafkaMessageCodec {
     type Error = io::Error;
 
-    fn encode(&mut self, item: T, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: KafkaResponse, dst: &mut BytesMut) -> Result<(), Self::Error> {
         let mut buf = BytesMut::new();
         item.encode(&mut buf)?;
 
@@ -43,6 +40,16 @@ where
         dst.put(buf);
 
         Ok(())
+    }
+}
+
+pub struct ConnectionState {
+    pub(crate) registry: Arc<MessageRegistry>,
+}
+
+impl ConnectionState {
+    pub fn new(registry: Arc<MessageRegistry>) -> Self {
+        Self { registry }
     }
 }
 
@@ -55,9 +62,10 @@ impl KafkaRequest {
     pub async fn decode_and_handle(
         buf: &mut BytesMut,
         registry: &MessageRegistry,
+        state: &mut ConnectionState,
     ) -> Result<Self, io::Error> {
         let header = RequestHeader::decode(buf, registry)?;
-        let response = registry.handle_request(buf, &header).await?;
+        let response = registry.handle_request(buf, &header, state).await?;
         Ok(Self { header, response })
     }
 }

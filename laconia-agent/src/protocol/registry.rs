@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, io};
 use bytes::BytesMut;
 
 use crate::{
-    RequestHeader, VersionRange,
+    ConnectionState, RequestHeader, VersionRange,
     protocol::{
         handlers::{AnyRequestHandler, RequestHandler, TypedRequestHandler},
         request::Request,
@@ -35,9 +35,10 @@ impl MessageRegistry {
         &self,
         buf: &mut BytesMut,
         header: &RequestHeader,
+        state: &mut ConnectionState,
     ) -> Result<Box<dyn AnyResponse>, io::Error> {
         match self.handlers.get(&header.api_key) {
-            Some(handler) => handler.handle(buf, header).await,
+            Some(handler) => handler.handle(buf, header, state).await,
             None => Err(io::Error::other(format!(
                 "Unsupported api key: {}",
                 header.api_key

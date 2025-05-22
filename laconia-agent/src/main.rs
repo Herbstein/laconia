@@ -4,7 +4,7 @@ use anyhow::Result;
 use bytes::BytesMut;
 use futures::{SinkExt, StreamExt};
 use laconia_agent::{
-    KafkaMessageCodec, KafkaRequest, KafkaResponse,
+    ConnectionState, KafkaMessageCodec, KafkaRequest, KafkaResponse,
     protocol::{
         handlers::{api_versions::ApiVersionsHandler, metadata::MetadataRequestHandler},
         registry::MessageRegistry,
@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
 
     let mut registry = MessageRegistry::new();
     registry.register(3, MetadataRequestHandler);
-    registry.register(18, ApiVersionsHandler::new(&registry));
+    registry.register(18, ApiVersionsHandler);
 
     let registry = Arc::new(registry);
 
@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
         let registry = registry.clone();
 
         tokio::spawn(async move {
-            let registry = registry.clone();
+            let mut connection_state = ConnectionState::new(registry.clone());
 
             let mut stream = KafkaMessageCodec.framed(stream);
 
@@ -42,9 +42,10 @@ async fn main() -> Result<()> {
 
                 let mut message = BytesMut::from(message);
 
-                let request = KafkaRequest::decode_and_handle(&mut message, &registry)
-                    .await
-                    .unwrap();
+                let request =
+                    KafkaRequest::decode_and_handle(&mut message, &registry, &mut connection_state)
+                        .await
+                        .unwrap();
 
                 let response = KafkaResponse::new(&request.header, request.response);
 

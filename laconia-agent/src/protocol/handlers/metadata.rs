@@ -1,14 +1,21 @@
 use std::io;
 
-use crate::protocol::{
-    handlers::RequestHandler,
-    messages::{MetadataRequest, MetadataResponse},
+use crate::{
+    ConnectionState,
+    protocol::{
+        handlers::RequestHandler,
+        messages::{MetadataRequest, MetadataResponse},
+    },
 };
 
 pub struct MetadataRequestHandler;
 
 impl RequestHandler<MetadataRequest> for MetadataRequestHandler {
-    async fn handle(&self, request: MetadataRequest) -> Result<MetadataResponse, io::Error> {
+    async fn handle(
+        &self,
+        request: MetadataRequest,
+        state: &mut ConnectionState,
+    ) -> Result<MetadataResponse, io::Error> {
         println!("Handling MetadataRequest");
         Ok(MetadataResponse {
             throttle_time_ms: 0,
