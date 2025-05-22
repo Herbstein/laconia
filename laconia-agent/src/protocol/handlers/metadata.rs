@@ -9,6 +9,7 @@ pub struct MetadataRequestHandler;
 
 impl RequestHandler<MetadataRequest> for MetadataRequestHandler {
     fn handle(&self, request: MetadataRequest) -> Result<MetadataResponse, io::Error> {
+        println!("Handling MetadataRequest");
         Ok(MetadataResponse {
             throttle_time_ms: 0,
             brokers: vec![],

@@ -30,6 +30,7 @@ impl ApiVersionsHandler {
 
 impl RequestHandler<ApiVersionsRequest> for ApiVersionsHandler {
     fn handle(&self, _request: ApiVersionsRequest) -> Result<ApiVersionsResponse, io::Error> {
+        println!("Handling ApiVersionsRequest");
         Ok(ApiVersionsResponse {
             error_code: 0,
             api_keys: self.api_versions.clone(),
