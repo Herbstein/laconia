@@ -6,7 +6,7 @@ use crate::{
     Message, VersionRange,
     protocol::{
         Decoder, DecoderVersioned, Encoder, EncoderVersioned,
-        primitives::{CompactArray, CompactArrayRef, CompactString},
+        primitives::{CompactArrayRef, CompactString},
         request::Request,
         response::Response,
     },

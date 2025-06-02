@@ -7,8 +7,11 @@ edition = "2024"
 anyhow = "1.0.98"
 async-trait = "0.1.88"
 bytes = "1.10.1"
+figment = { version = "0.10.19", features = ["env", "toml"] }
 futures = "0.3.31"
 integer-encoding = "4.0.2"
+laconia-liveness = { version = "0.1.0", path = "../laconia-liveness", features = ["client"] }
+serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.45.0", features = ["macros", "net", "rt-multi-thread"] }
 tokio-util = { version = "0.7.15", features = ["codec"] }
-uuid = "1.16.0"
+uuid = { version = "1.16.0", features = ["v4"] }

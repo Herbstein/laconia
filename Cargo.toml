@@ -3,6 +3,7 @@ members = [
     "laconia-agent",
     "laconia-client",
     "laconia-control",
+    "laconia-liveness",
     "laconia-metadata"
 ]
 resolver = "3"

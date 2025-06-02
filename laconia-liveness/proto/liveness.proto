@@ -1,0 +1,22 @@
+syntax = "proto3";
+package liveness;
+
+service Liveness {
+  rpc Checkin(CheckinRequest) returns (CheckinReply) {}
+
+  rpc Ping(PingRequest) returns (PingReply) {}
+}
+
+message CheckinRequest {
+  string id = 1;
+}
+
+message CheckinReply {
+  int32 interval = 1;
+}
+
+message PingRequest {
+  string id = 1;
+}
+
+message PingReply {}
