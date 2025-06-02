@@ -1,10 +1,10 @@
-use std::{io, io::Error};
+use std::io;
 
 use bytes::BytesMut;
 
 use crate::{
     Message, VersionRange,
-    protocol::{DecoderVersioned, Encoder, request::Request, response::Response},
+    protocol::{DecoderVersioned, EncoderVersioned, request::Request, response::Response},
 };
 
 pub struct FindCoordinatorRequest {}
@@ -32,8 +32,8 @@ pub struct FindCoordinatorResponse {}
 
 impl Response for FindCoordinatorResponse {}
 
-impl Encoder for FindCoordinatorResponse {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), Error> {
+impl EncoderVersioned for FindCoordinatorResponse {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
         todo!()
     }
 }

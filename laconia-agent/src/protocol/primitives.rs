@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use integer_encoding::{VarIntReader, VarIntWriter};
 use uuid::Uuid;
 
-use crate::protocol::{Decoder, DecoderVersioned, Encoder};
+use crate::protocol::{Decoder, DecoderVersioned, Encoder, EncoderVersioned};
 
 impl Decoder for bool {
     fn decode(buf: &mut BytesMut) -> Result<bool, io::Error> {
@@ -337,16 +337,30 @@ where
     }
 }
 
-impl<T> Encoder for CompactArray<T>
+pub struct CompactArrayRef<'a, T>(pub &'a [T]);
+
+impl<'a, T> Encoder for CompactArrayRef<'a, T>
 where
     T: Encoder,
 {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
         buf.writer().write_varint((self.0.len() + 1) as u32)?;
-        for element in &self.0 {
+        for element in self.0 {
             element.encode(buf)?;
         }
+        Ok(())
+    }
+}
 
+impl<'a, T> EncoderVersioned for CompactArrayRef<'a, T>
+where
+    T: EncoderVersioned,
+{
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
+        buf.writer().write_varint((self.0.len() + 1) as u32)?;
+        for element in self.0 {
+            element.encode(buf, version)?;
+        }
         Ok(())
     }
 }

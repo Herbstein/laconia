@@ -6,8 +6,8 @@ use uuid::Uuid;
 use crate::{
     Message, VersionRange,
     protocol::{
-        Decoder, DecoderVersioned, Encoder,
-        primitives::{CompactArray, CompactNullableString, CompactString},
+        Decoder, DecoderVersioned, Encoder, EncoderVersioned,
+        primitives::{CompactArray, CompactArrayRef, CompactNullableString, CompactString},
         request::Request,
         response::Response,
     },
@@ -130,13 +130,13 @@ pub struct MetadataResponse {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Encoder for MetadataResponse {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+impl EncoderVersioned for MetadataResponse {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
         self.throttle_time_ms.encode(buf)?;
-        CompactArray(self.brokers.clone()).encode(buf)?;
+        CompactArrayRef(&self.brokers).encode(buf, version)?;
         CompactNullableString(self.cluster_id.clone()).encode(buf)?;
         self.controller_id.encode(buf)?;
-        CompactArray(self.topics.clone()).encode(buf)?;
+        CompactArrayRef(&self.topics).encode(buf, version)?;
         self.tagged_fields.encode(buf)?;
         Ok(())
     }
@@ -153,8 +153,8 @@ pub struct MetadataResponseBrokers {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Encoder for MetadataResponseBrokers {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+impl EncoderVersioned for MetadataResponseBrokers {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
         self.node_id.encode(buf)?;
         CompactString(self.host.clone()).encode(buf)?;
         self.port.encode(buf)?;
@@ -175,12 +175,12 @@ pub struct MetadataResponseTopic {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Encoder for MetadataResponseTopic {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+impl EncoderVersioned for MetadataResponseTopic {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
         self.error_code.encode(buf)?;
         CompactString(self.name.clone()).encode(buf)?;
         self.is_internal.encode(buf)?;
-        CompactArray(self.partitions.clone()).encode(buf)?;
+        CompactArrayRef(&self.partitions).encode(buf, version)?;
         self.topic_authorized_operations.encode(buf)?;
         self.tagged_fields.encode(buf)?;
         Ok(())
@@ -199,15 +199,15 @@ pub struct MetadataResponseTopicPartition {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Encoder for MetadataResponseTopicPartition {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+impl EncoderVersioned for MetadataResponseTopicPartition {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
         buf.put_i16(self.error_code);
         buf.put_i32(self.partition_index);
         buf.put_i32(self.leader_id);
         buf.put_i32(self.leader_epoch);
-        CompactArray(self.replica_nodes.clone()).encode(buf)?;
-        CompactArray(self.isr_nodes.clone()).encode(buf)?;
-        CompactArray(self.offline_replicas.clone()).encode(buf)?;
+        CompactArrayRef(&self.replica_nodes).encode(buf)?;
+        CompactArrayRef(&self.isr_nodes).encode(buf)?;
+        CompactArrayRef(&self.offline_replicas).encode(buf)?;
         self.tagged_fields.encode(buf)?;
         Ok(())
     }

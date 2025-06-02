@@ -3,7 +3,8 @@ use std::{collections::BTreeMap, io, sync::Arc};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::protocol::{
-    Decoder, Encoder, primitives::NullableString, registry::MessageRegistry, response::AnyResponse,
+    Decoder, Encoder, EncoderVersioned, primitives::NullableString, registry::MessageRegistry,
+    response::AnyResponse,
 };
 
 pub mod protocol;
@@ -119,6 +120,10 @@ pub struct VersionRange {
 }
 
 impl VersionRange {
+    pub fn new(min: i16, max: i16) -> Self {
+        Self { min, max }
+    }
+
     pub fn contains(&self, version: i16) -> bool {
         self.min <= version && version <= self.max
     }
@@ -149,8 +154,8 @@ impl KafkaResponse {
 
 impl Encoder for KafkaResponse {
     fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
-        self.header.encode(buf)?;
-        self.response.encode_any(buf)?;
+        self.header.encode(buf, 1)?; // TODO(herbstein): determine header version
+        self.response.encode_any(buf, i16::MAX)?; // TODO(herbstein): determine response version
         Ok(())
     }
 }
@@ -159,8 +164,8 @@ pub struct ResponseHeader {
     pub correlation_id: i32,
 }
 
-impl Encoder for ResponseHeader {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+impl EncoderVersioned for ResponseHeader {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
         buf.put_i32(self.correlation_id);
         Ok(())
     }

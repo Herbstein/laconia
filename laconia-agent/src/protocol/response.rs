@@ -2,16 +2,16 @@ use std::io;
 
 use bytes::BytesMut;
 
-use crate::{ protocol::Encoder};
+use crate::protocol::EncoderVersioned;
 
-pub trait Response: Encoder + Send {}
+pub trait Response: EncoderVersioned + Send {}
 
 pub trait AnyResponse: Send {
-    fn encode_any(&self, buf: &mut BytesMut) -> Result<(), io::Error>;
+    fn encode_any(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error>;
 }
 
 impl<T: Response> AnyResponse for T {
-    fn encode_any(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
-        self.encode(buf)
+    fn encode_any(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
+        self.encode(buf, version)
     }
 }

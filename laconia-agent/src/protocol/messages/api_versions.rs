@@ -5,8 +5,8 @@ use bytes::{BufMut, Bytes, BytesMut};
 use crate::{
     Message, VersionRange,
     protocol::{
-        Decoder, DecoderVersioned, Encoder,
-        primitives::{CompactArray, CompactString},
+        Decoder, DecoderVersioned, Encoder, EncoderVersioned,
+        primitives::{CompactArray, CompactArrayRef, CompactString},
         request::Request,
         response::Response,
     },
@@ -66,10 +66,10 @@ pub struct ApiVersionsResponse {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Encoder for ApiVersionsResponse {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
+impl EncoderVersioned for ApiVersionsResponse {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
         buf.put_i16(self.error_code);
-        CompactArray(self.api_keys.clone()).encode(buf)?;
+        CompactArrayRef(&self.api_keys).encode(buf, version)?;
         buf.put_i32(self.throttle_time_ms);
         self.tagged_fields.encode(buf)?;
 
@@ -87,9 +87,9 @@ pub struct ApiVersionsApiKeys {
     pub tagged_fields: BTreeMap<i32, Bytes>,
 }
 
-impl Encoder for ApiVersionsApiKeys {
-    fn encode(&self, buf: &mut BytesMut) -> Result<(), io::Error> {
-        buf.put_i16(self.api_key as i16);
+impl EncoderVersioned for ApiVersionsApiKeys {
+    fn encode(&self, buf: &mut BytesMut, version: i16) -> Result<(), io::Error> {
+        buf.put_i16(self.api_key);
         buf.put_i16(self.min_version);
         buf.put_i16(self.max_version);
         self.tagged_fields.encode(buf)?;
